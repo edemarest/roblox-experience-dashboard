@@ -1,0 +1,30 @@
+.page {
+  padding: 20px;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  color: #e8e8e8;
+}
+.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px }
+.headerActions button { margin-left:8px }
+.kpiRow { display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap }
+.kpiCard { background:#0f0f11; padding:12px 16px; border-radius:8px; min-width:120px }
+.kpiLabel { color:#9aa0a6; font-size:12px }
+.kpiValue { font-weight:700; font-size:18px }
+.grid { display:flex; gap:16px }
+.colMain { flex:1 }
+.colSide { width:360px }
+.card { background:#111213; padding:12px; border-radius:8px; margin-bottom:12px }
+.jobsList { display:flex; flex-direction:column; gap:8px }
+.jobRow { display:flex; gap:8px; align-items:center }
+.jobName { font-weight:700; min-width:140px }
+.jobMeta { color:#9aa0a6; font-size:12px }
+.jobCounts { margin-left:auto; color:#9aa0a6 }
+.jobActions button { margin-left:8px }
+.table { width:100%; border-collapse:collapse }
+.table th { text-align:left; color:#9aa0a6; font-size:12px; padding:8px }
+.table td { padding:8px; border-top:1px solid rgba(255,255,255,0.03) }
+.placeholder { background:linear-gradient(90deg,#0b0b0d,#0f0f11); height:80px; border-radius:6px }
+.failureList { list-style:none; padding-left:0 }
+.failureList li { font-size:13px; margin-bottom:8px }
+.err { color:#ff8a8a }
+.ts { color:#8b8b8b; font-size:11px }
+.log { background:#0b0b0c; padding:8px; border-radius:6px; max-height:120px; overflow:auto }

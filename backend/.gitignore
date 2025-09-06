@@ -1,0 +1,8 @@
+node_modules/
+node_modules 2/
+.env
+/data/*.db*
+/dist/
+*.jsonl
+*.log
+*.json
