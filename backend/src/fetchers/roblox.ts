@@ -32,6 +32,11 @@ export async function getGameDetails(universeId: number) {
     const item =
         Array.isArray(json?.data) &&
         json.data.find((d: any) => d?.id === universeId || d?.universeId === universeId);
+    // If there's no item in the response the game may not be public or the universe
+    // hasn't been populated on Roblox's side yet. Return null so callers can
+    // explicitly treat this as "no public data" instead of receiving an
+    // object with all null fields.
+    if (!item) return null;
 
     // Shape is defensive (fields can vary)
     const name: string | null = item?.name ?? null;

@@ -110,6 +110,36 @@ export async function resolveAndTrack(input: string): Promise<{ universe_id: num
   return { universe_id: Number(j.universe_id ?? j.universeId ?? j.id) };
 }
 
+export async function searchExperiences(query: string, limit = 20) {
+  const q = new URLSearchParams(); q.set('q', query); q.set('limit', String(limit));
+  const r = await fetch(`${API}/api/v1/experiences/search?${q.toString()}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const j = await r.json();
+  // backend returns { results: [...] }
+  const arr = j.results ?? [];
+  return arr.map((u: any) => ({
+    universe_id: Number(u.universeId ?? u.universe_id ?? u.id),
+    name: u.name ?? null,
+    icon_url: u.icon_url ?? u.iconUrl ?? null,
+    players_now: Number(u.players_now ?? u.players ?? 0),
+    favorites: Number(u.favorites ?? 0),
+  }));
+}
+
+export async function startUniverseFetch(universeId: number, force = false) {
+  const q = new URLSearchParams(); q.set('universeId', String(universeId)); if (force) q.set('force', '1');
+  const r = await fetch(`${API}/api/v1/universes/fetch?${q.toString()}`, { method: 'POST' });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return await r.json();
+}
+
+export async function getUniverseFetchProgress(universeId: number) {
+  const q = new URLSearchParams(); q.set('universeId', String(universeId));
+  const r = await fetch(`${API}/api/v1/universes/fetch/progress?${q.toString()}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return await r.json();
+}
+
 export async function getExperience(universeId: number): Promise<ExperienceDetail> {
   const r = await fetch(`${API}/api/v1/experiences/${universeId}`);
   const j = await safeJson(r);

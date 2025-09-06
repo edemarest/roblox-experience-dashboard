@@ -6,6 +6,8 @@ import useExperienceBadges from '../hooks/useExperienceBadges';
 import useExperienceMedia from '../hooks/useExperienceMedia';
 import useExperienceIcons from '../hooks/useExperienceIcons';
 import useTrackUniverse from '../hooks/useTrackUniverse';
+import FetchProgressModal from '../components/FetchProgressModal';
+import { startUniverseFetch, getUniverseFetchProgress } from '../lib/api';
 import ActivityChart from '../components/ActivityChart';
 import BadgesList from '../components/BadgesList';
 import MediaGallery from '../components/MediaGallery';
@@ -15,13 +17,21 @@ import { useState, useEffect } from 'react';
 import '../styles/global.css';
 
 export default function ExperiencePage() {
+  console.log('[Experience] render start');
   const { id } = useParams();
   const idNum = id ? Number(id) : undefined;
+  console.log('[Experience] idNum=', idNum);
   const q = useExperience(idNum);
+  // log query state changes
+  useEffect(() => { console.log('[Experience] useExperience state', { isLoading: q.isLoading, isError: q.isError, data: q.data }); }, [q.isLoading, q.isError, q.data]);
   const historyQ = useExperienceHistory(idNum);
+  useEffect(() => { console.log('[Experience] historyQ', { isLoading: historyQ.isLoading, isError: historyQ.isError }); }, [historyQ.isLoading, historyQ.isError]);
   const badgesQ = useExperienceBadges(idNum);
+  useEffect(() => { console.log('[Experience] badgesQ', { isLoading: badgesQ.isLoading, isError: badgesQ.isError }); }, [badgesQ.isLoading, badgesQ.isError]);
   const mediaQ = useExperienceMedia(idNum);
+  useEffect(() => { console.log('[Experience] mediaQ', { isLoading: mediaQ.isLoading, isError: mediaQ.isError }); }, [mediaQ.isLoading, mediaQ.isError]);
   const iconsQ = useExperienceIcons(idNum);
+  useEffect(() => { console.log('[Experience] iconsQ', { isLoading: iconsQ.isLoading, isError: iconsQ.isError }); }, [iconsQ.isLoading, iconsQ.isError]);
   const [hasVisibleMedia, setHasVisibleMedia] = useState<boolean | null>(null);
   const fallbackIcon = (() => {
     if (q.data?.icon_url) return q.data.icon_url;
@@ -69,11 +79,62 @@ export default function ExperiencePage() {
     return ()=>{ mounted = false; cleanup(); };
   },[mediaQ.isSuccess, mediaQ.data]);
   const tracker = useTrackUniverse();
+  const [showFetchModal, setShowFetchModal] = useState(false);
+
+  // If user navigated here directly (for example from search), check if a fetch was queued
+  // and open the modal automatically so progress is visible.
+  useEffect(() => {
+    if (!idNum) return;
+    let mounted = true;
+    (async () => {
+      try {
+        console.log('[Experience] checking existing fetch progress for', idNum);
+        const resp = await getUniverseFetchProgress(idNum);
+        console.log('[Experience] progress response', resp);
+        const status = String(resp?.progress?.status ?? '').toLowerCase();
+        if (mounted && (status === 'queued' || status === 'running' || status === 'started')) {
+          console.log('[Experience] fetch already queued/running -> opening modal');
+          setShowFetchModal(true);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, [idNum]);
+
+  // After navigation from search, the search input sets a sessionStorage flag so
+  // we can start the fetch reliably after page load (avoids browser cancelling requests at navigation).
+  useEffect(() => {
+    if (!idNum) return;
+    try {
+      const kick = sessionStorage.getItem('kick_fetch');
+      console.log('[Experience] kick_fetch value=', kick, 'for idNum=', idNum);
+      if (kick && Number(kick) === Number(idNum)) {
+        // clear flag and start fetch + show modal
+        sessionStorage.removeItem('kick_fetch');
+        console.log('[Experience] starting fetch due to kick_fetch for', idNum);
+        (async () => {
+          try {
+            setShowFetchModal(true);
+            const r = await startUniverseFetch(Number(idNum), true);
+            console.log('[Experience] startUniverseFetch response', r);
+          } catch (e) {
+            console.error('[Experience] startUniverseFetch failed', e);
+          }
+        })();
+      }
+    } catch (e) { console.error('[Experience] kick_fetch handling failed', e); }
+  }, [idNum]);
   const [tab, setTab] = useState<'overview'|'activity'|'badges'|'media'|'updates'|'related'>('overview');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
     <main className="page">
+      {showFetchModal && (q.data?.universe_id ?? idNum) && (
+        <FetchProgressModal universeId={Number(q.data?.universe_id ?? idNum)} onClose={() => setShowFetchModal(false)} />
+      )}
+
       {q.isLoading ? (
         <div>
           <UniverseCardSkeleton />
@@ -89,7 +150,7 @@ export default function ExperiencePage() {
             <div className="exp-title-row">
               <img src={fallbackIcon ?? q.data.icon_url ?? '/vite.svg'} alt="icon" className="exp-icon" />
               <div>
-                <h1 className="exp-title">{q.data.name}</h1>
+                <h1 className="exp-title">{q.data.name ?? `Universe ${q.data?.universe_id ?? idNum}`}</h1>
                 <div className="exp-meta">Players: {q.data.players_now ?? '—'} • Favorites: {q.data.favorites ?? '—'}</div>
               </div>
             </div>
@@ -119,10 +180,18 @@ export default function ExperiencePage() {
                   <button
                     className="btn"
                     onClick={() => tracker.mutate(String(q.data?.universe_id ?? idNum))}
-                    disabled={tracker.isLoading || q.data?.header?.isTracked}
+                    disabled={tracker.isLoading || (q.data?.is_tracked ?? q.data?.isTracked)}
                   >
-                    {q.data?.header?.isTracked ? 'Tracked' : tracker.isLoading ? 'Tracking…' : 'Track'}
+                    {(q.data?.is_tracked ?? q.data?.isTracked) ? 'Tracked' : tracker.isLoading ? 'Tracking…' : 'Track'}
                   </button>
+                  <button style={{marginLeft:8}} onClick={async () => {
+                    try {
+                      setShowFetchModal(true);
+                      await startUniverseFetch(Number(q.data?.universe_id ?? idNum), true);
+                    } catch (e) {
+                      // ignore; modal will still poll
+                    }
+                  }}>Fetch details</button>
                   <button style={{marginLeft:8}} onClick={() => window.open(`https://www.roblox.com/games/${q.data?.universe_id ?? idNum}`, '_blank')}>Open in Roblox</button>
                 </div>
                 {tracker.isError && <div style={{color:'#f88',marginTop:8}}>Failed to resolve/track.</div>}

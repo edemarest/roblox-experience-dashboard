@@ -33,7 +33,8 @@ r.post('/resolve', async (req, res) => {
 
     // try universe id directly
     if (Number.isFinite(numeric) && numeric > 0) {
-        await ensureTrack(numeric);
+    try { require('../services/experiences.js').ensureUniverseAsync(numeric); } catch (e) {}
+    await ensureTrack(numeric);
         return res.json({ universeId: numeric });
     }
 
@@ -43,6 +44,7 @@ r.post('/resolve', async (req, res) => {
         const placeId = Number(placeMatch[1]);
         const u = await resolveUniverseIdFromPlace(placeId);
         if (u) {
+            try { require('../services/experiences.js').ensureUniverseAsync(u); } catch (e) {}
             await ensureTrack(u);
             return res.json({ universeId: u });
         }
